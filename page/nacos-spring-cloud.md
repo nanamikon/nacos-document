@@ -23,7 +23,7 @@ https://nacos.io/zh-cn/docs/what-is-nacos.html
 ## 实现细节分析
 
 整体设计和spring-cloud-config类似, 也是通过bootstrap.properties，在context初始化之前， 从远处配置服务获取配置。
-data-id就是配置文件的名字， 内容就是具体的键值对 
+data-id就是配置文件的名字， 内容就是具体配置的键值对 
 
 参考例子中的bootstrap.properties配置。
 ```properties
@@ -32,7 +32,7 @@ spring.application.name=example
 ```
 
 spring.cloud.nacos.config中相关的属性配置可以参考org.springframework.cloud.alibaba.nacos.NacosConfigProperties中的说明
-spring.application.name则是指定了工程额应用名。
+spring.application.name则是指定了工程的应用名。
 
 nacos-spring-cloud实现了自己的PropertySourceLocator实现org.springframework.cloud.alibaba.nacos.client.NacosPropertySourceLocator
 其中最关键的是下面三个方法
@@ -159,7 +159,7 @@ public class NacosContextRefresher implements ApplicationListener<ApplicationRea
 ```
 
 可以看到是在context ready的时候，  将所有nacos-spring-cloud管理的PropertySource取出来， 然后通过sdk， 监听配置的变化， 实现热更新。
-中间最关键的点事 contextRefresher.refresh()， 代码如下
+中间如何刷新最关键的点是 contextRefresher.refresh()， 代码如下
 
 ```java
 	public synchronized Set<String> refresh() {
@@ -174,7 +174,7 @@ public class NacosContextRefresher implements ApplicationListener<ApplicationRea
 	}
 ```
 
-原生spring cloud热更新也是通过这个方法， 从新走一次环境初始化流程， 获取到最新的配置和目前配置的差异， 触发对应修改过配置key的事件，最后才会进行对有RefreshScope注解的bean进行刷新 
+原生spring cloud热更新也是通过这个方法， 从新走一次环境初始化流程， 获取到最新的配置和目前配置的差异， 修改过配置的key会触发事件，最后才会进行对有**RefreshScope注解**的bean进行统一的刷新 
 
 
 ## 配置优先级问题
@@ -229,4 +229,4 @@ public class PropertySourceBootstrapConfiguration implements
 		}
 ```
 
-可以看到按照自然顺序的话， nacos的配置是排第一位， 优先级比其他都搞， 可以认为远端的配置最优先，这个也和spring-cloud-config是一致的
+可以看到按照自然顺序的话， nacos的配置是排第一位， 优先级比其他都高， 可以认为远端的配置最优先，而在远端的配置中， 优先级最高的profile对应的配置也是最高的，这些和spring-cloud-config是一致的
