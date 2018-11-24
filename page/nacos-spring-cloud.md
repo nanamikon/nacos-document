@@ -38,7 +38,7 @@ nacos-spring-cloud实现了自己的PropertySourceLocator实现org.springframewo
 其中最关键的是下面三个方法
 
 ```java
-@Override
+        @Override
 	public PropertySource<?> locate(Environment env) {
 
 		ConfigService configService = nacosConfigProperties.configServiceInstance();
@@ -162,16 +162,16 @@ public class NacosContextRefresher implements ApplicationListener<ApplicationRea
 中间如何刷新最关键的点是 contextRefresher.refresh()， 代码如下
 
 ```java
-	public synchronized Set<String> refresh() {
-		Map<String, Object> before = extract(
-				this.context.getEnvironment().getPropertySources());
-		addConfigFilesToEnvironment();
-		Set<String> keys = changes(before,
-				extract(this.context.getEnvironment().getPropertySources())).keySet();
-		this.context.publishEvent(new EnvironmentChangeEvent(context, keys));
-		this.scope.refreshAll();
-		return keys;
-	}
+public synchronized Set<String> refresh() {
+	Map<String, Object> before = extract(
+			this.context.getEnvironment().getPropertySources());
+	addConfigFilesToEnvironment();
+	Set<String> keys = changes(before,
+			extract(this.context.getEnvironment().getPropertySources())).keySet();
+	this.context.publishEvent(new EnvironmentChangeEvent(context, keys));
+	this.scope.refreshAll();
+	return keys;
+}
 ```
 
 原生spring cloud热更新也是通过这个方法， 从新走一次环境初始化流程， 获取到最新的配置和目前配置的差异， 修改过配置的key会触发事件，最后才会进行对有**RefreshScope注解**的bean进行统一的刷新 
@@ -194,39 +194,39 @@ public class NacosPropertySourceLocator implements PropertySourceLocator {
 @Configuration
 @EnableConfigurationProperties(PropertySourceBootstrapProperties.class)
 public class PropertySourceBootstrapConfiguration implements
-		ApplicationContextInitializer<ConfigurableApplicationContext>, Ordered {
-            	@Override
-            	public void initialize(ConfigurableApplicationContext applicationContext) {
-            		CompositePropertySource composite = new CompositePropertySource(
-            				BOOTSTRAP_PROPERTY_SOURCE_NAME);
-            		AnnotationAwareOrderComparator.sort(this.propertySourceLocators);
-            		boolean empty = true;
-            		ConfigurableEnvironment environment = applicationContext.getEnvironment();
-            		for (PropertySourceLocator locator : this.propertySourceLocators) {
-            			PropertySource<?> source = null;
-            			source = locator.locate(environment);
-            			if (source == null) {
-            				continue;
-            			}
-            			logger.info("Located property source: " + source);
-            			composite.addPropertySource(source);
-            			empty = false;
-            		}
-            		if (!empty) {
-            			MutablePropertySources propertySources = environment.getPropertySources();
-            			String logConfig = environment.resolvePlaceholders("${logging.config:}");
-            			LogFile logFile = LogFile.get(environment);
-            			if (propertySources.contains(BOOTSTRAP_PROPERTY_SOURCE_NAME)) {
-            				propertySources.remove(BOOTSTRAP_PROPERTY_SOURCE_NAME);
-            			}
-            			insertPropertySources(propertySources, composite);
-            			reinitializeLoggingSystem(environment, logConfig, logFile);
-            			setLogLevels(applicationContext, environment);
-            			handleIncludedProfiles(environment);
-            		}
-            	}
-            	.....
+	ApplicationContextInitializer<ConfigurableApplicationContext>, Ordered {
+	@Override
+	public void initialize(ConfigurableApplicationContext applicationContext) {
+		CompositePropertySource composite = new CompositePropertySource(
+				BOOTSTRAP_PROPERTY_SOURCE_NAME);
+		AnnotationAwareOrderComparator.sort(this.propertySourceLocators);
+		boolean empty = true;
+		ConfigurableEnvironment environment = applicationContext.getEnvironment();
+		for (PropertySourceLocator locator : this.propertySourceLocators) {
+			PropertySource<?> source = null;
+			source = locator.locate(environment);
+			if (source == null) {
+				continue;
+			}
+			logger.info("Located property source: " + source);
+			composite.addPropertySource(source);
+			empty = false;
 		}
+		if (!empty) {
+			MutablePropertySources propertySources = environment.getPropertySources();
+			String logConfig = environment.resolvePlaceholders("${logging.config:}");
+			LogFile logFile = LogFile.get(environment);
+			if (propertySources.contains(BOOTSTRAP_PROPERTY_SOURCE_NAME)) {
+				propertySources.remove(BOOTSTRAP_PROPERTY_SOURCE_NAME);
+			}
+			insertPropertySources(propertySources, composite);
+			reinitializeLoggingSystem(environment, logConfig, logFile);
+			setLogLevels(applicationContext, environment);
+			handleIncludedProfiles(environment);
+		}
+	}
+	.....
+}
 ```
 
 可以看到按照自然顺序的话， nacos的配置是排第一位， 优先级比其他都高， 可以认为远端的配置最优先，而在远端的配置中， 优先级最高的profile对应的配置也是最高的，这些和spring-cloud-config是一致的
