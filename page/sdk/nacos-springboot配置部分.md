@@ -1,4 +1,4 @@
-#配置例子
+# 配置例子
 官方例子代码如下
 ```java
 @Controller
@@ -27,10 +27,10 @@ nacos.config.server-addr=127.0.0.1:8848
 
 有几个关键点
 1. NacosPropertySource注解用于指定需要加载的配置信息。  其实最好是都放在一个地方，方便管理， 例如放在入口com.alibaba.nacos.example.spring.boot.NacosConfigApplication
-2、**必须提供相应的set方法**， 才能实现autoRefreshed，后面会说一下实现细节
-3、nacos.config.server-addr配置服务端的地址
+1. **必须提供相应的set方法**， 才能实现autoRefreshed，后面会说一下实现细节
+1. nacos.config.server-addr配置服务端的地址
 
-#配置注入实现细节
+# 配置注入实现细节
 配置注入分为两个部分， 一个是bean初始化的时候，如何注入变量， 一个是配置变化是，如何体现到bean中
 
 先看第一点
@@ -129,15 +129,18 @@ public class NacosPropertySourcePostProcessor implements BeanDefinitionRegistryP
 ![](https://github.com/nanamikon/nacos-document/blob/master/spring-bean-life-cycle.png)
 
 这个扩展点可以在bean初始化之前， 做一些操作， 而nacos就是在这一步将environment中的propertySources进行修改，后续bean就会使用配置的变量进行初始化。
-而从postProcessBeanFactory这个实现可以看出来， 全部的bean都会扫一遍NacosPropertySource注解， 然后添加到environment中
+而从postProcessBeanFactory这个实现可以看出来， 全部的bean都会扫一遍NacosPropertySource注解， 然后添加到environment中， 所以NacosPropertySource这个注解写在哪个位置其实问题不大
 
-addNacosPropertySource方法看到， 添加到environment的过程， 是按照注解中定义的顺序来进行的；而addListenerIfAutoRefreshed可以看到，需要自动刷新的，会通过sdk来监听变化，改变对应的值。
-这里有一个问题是这里的自动刷新功能其实是无法影响到那些已经创建的bean的，因为没有修改对应bean的属性，也没有触发bean重新创建， 那这个功能实际是在哪里触发的呢？
+从addNacosPropertySource方法看到， 添加到environment的过程， 是按照注解中定义的顺序来进行的；而从addListenerIfAutoRefreshed可以看到，需要自动刷新的，会通过sdk来监听变化，改变对应的值。
 
+这里有一个问题是这里的自动刷新功能其实是无法影响到那些已经创建的bean的，因为这里没有修改对应bean的属性，也没有触发bean重新创建， 那这个功能实际是在哪里触发的呢？
+
+下面看一下具体的触发地
 
 ```java
 final ConfigService configService = configServiceBeanBuilder.build(nacosPropertiesAttributes);
 ```
+
 首先这里创建的ConfigService实现对应的是EventPublishingConfigService， 其中addListener的实现如下
 
 ```java
@@ -150,7 +153,8 @@ final ConfigService configService = configServiceBeanBuilder.build(nacosProperti
 
 ```
 
-DelegatingEventPublishingListener的实现如下
+其中DelegatingEventPublishingListener的实现如下
+
 ```java
 final class DelegatingEventPublishingListener implements Listener {
     @Override
@@ -170,7 +174,9 @@ final class DelegatingEventPublishingListener implements Listener {
     .....
 }
 ```
-可以看到是在正常的onReceived操作之前， 触发了一个事件，对应的事件是NacosConfigReceivedEvent。 这里用到了spring的事件驱动模型， 那就是会有对应的事件处理类 NacosValueAnnotationBeanPostProcessor， 实现如下
+
+可以看到是在正常的onReceived操作之前， 触发了一个事件，对应的事件是NacosConfigReceivedEvent。 这里用到了spring的事件驱动模型， 而对应的事件处理类 NacosValueAnnotationBeanPostProcessor， 实现如下
+
 ```java
 public class NacosValueAnnotationBeanPostProcessor extends AnnotationInjectedBeanPostProcessor<NacosValue>
     implements BeanFactoryAware, ApplicationListener<NacosConfigReceivedEvent> {
